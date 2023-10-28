@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Backend CI
 
 on:
   # This allows running on-demand
@@ -7,55 +7,74 @@ on:
     branches:
       - main
     paths:
-      # This will only run on changes to the frontend code
-      - "starter/frontend/**"
+      # This will only run on changes to the backend code
+      - "starter/backend/**"
+
 env:
-  NODE_VERSION: 18.x
+  PYTHON_VERSION: 3.11
 
 jobs:
   lint:
-    name: Frontend Linting
+    name: Backend Linting
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./starter/frontend
+        working-directory: ./starter/backend
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Cache Node.js dependencies
+      - name: Cache pipenv dependencies
         uses: actions/cache@v3
         with:
-          path: ~/.npm
-          key: npm-${{ hashFiles('starter/frontend/package-lock.json') }}
+          path: ~/.cache/pipenv
+          key: pipenv-${{ runner.os }}-${{ hashFiles('**/Pipfile.lock') }}
           restore-keys: |
-            npm-
+            pipenv-${{ runner.os }}-
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{env.PYTHON_VERSION}}
+
+      - name: Install pipenv
+        run: |
+          pip install pipenv
 
       - name: Install dependencies
         run: |
-          npm install
+          pipenv install
 
-      - name: Run ESLint
+      - name: Run lint
         run: |
-          npm run lint -- --fix
+          pipenv run lint
 
   test:
-    name: Frontend Testing
+    name: Backend Testing
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./starter/frontend
+        working-directory: ./starter/backend
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{env.PYTHON_VERSION}}
+
+      - name: Install pipenv
+        run: |
+          pip install pipenv
+
       - name: Install dependencies
         run: |
-          npm install
+          pipenv install
 
       - name: Run tests
         run: |
-          npm test
+          pipenv run test
 
   build:
     name: Build and Push Docker image
@@ -63,14 +82,23 @@ jobs:
     needs: [lint, test]
     defaults:
       run:
-        working-directory: ./starter/frontend
+        working-directory: ./starter/backend
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{env.PYTHON_VERSION}}
+
+      - name: Install pipenv
+        run: |
+          pip install pipenv
+
       - name: Install dependencies
         run: |
-          npm install
+          pipenv install
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -88,22 +116,19 @@ jobs:
       - name: Build, Tag, and Push docker image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: frontend
+          REPOSITORY: backend
           IMAGE_TAG: latest
         run: |
           echo "Registry: $REGISTRY"
           echo "Repository: $REPOSITORY"
           echo "Image Tag: $IMAGE_TAG"
-          aws eks update-kubeconfig --name cluster
-          export EXTERNALIP=$(kubectl get svc backend -o=jsonpath='{.status.loadBalancer.ingress[0].hostname}{"\n"}{.status.loadBalancer.ingress[0].ip}')
-          echo $EXTERNALIP
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG --build-arg=REACT_APP_MOVIE_API_URL=http://$EXTERNALIP .
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker images
 
       - name: Cache Docker image
         uses: actions/cache@v3
         with:
           path: ~/docker-cache
-          key: docker-${{ github.sha }}-frontend
+          key: docker-${{ github.sha }}-backend
           restore-keys: |
             docker-${{ github.sha }}-
