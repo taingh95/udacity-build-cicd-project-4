@@ -316,8 +316,8 @@ resource "aws_iam_user" "github_action_user" {
   name = "github-action-user"
 }
 
-resource "aws_iam_user_policy" "github_action_user_permission" {
-  user   = aws_iam_user.github_action_user.name
+resource "aws_iam_policy" "github_policy" {
+  name   = "github-policy"
   policy = data.aws_iam_policy_document.github_policy.json
 }
 
@@ -327,4 +327,9 @@ data "aws_iam_policy_document" "github_policy" {
     actions   = ["ecr:*", "eks:*", "ec2:*"]
     resources = ["*"]
   }
+}
+
+resource "aws_iam_user_policy_attachment" "github_policy" {
+  user       = aws_iam_user.github_action_user.name
+  policy_arn = aws_iam_policy.github_policy.arn
 }
