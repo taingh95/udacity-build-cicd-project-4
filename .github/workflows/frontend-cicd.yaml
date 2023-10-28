@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Frontend CICD
 
 on:
   # This allows running on-demand
@@ -98,6 +98,7 @@ jobs:
           echo $EXTERNALIP
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG --build-arg=REACT_APP_MOVIE_API_URL=http://$EXTERNALIP .
           docker images
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
       - name: Cache Docker image
         uses: actions/cache@v3
