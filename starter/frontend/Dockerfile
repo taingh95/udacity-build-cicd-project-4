@@ -15,6 +15,7 @@ RUN npm ci
 COPY . .
 
 # Build the app
+RUN npx update-browserslist-db@latest
 RUN npm run build
 
 # Expose the port used by the React app
